@@ -102,6 +102,7 @@ services:
     networks:
       - business_kong
       - express_db
+      - prometheus_kong
 
   mongo-express:
     image: mongo-express:latest
@@ -159,6 +160,9 @@ services:
         - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
     ports:
         - 9090:9090
+    networks:
+      - prometheus_kong
+
     deploy:
       replicas: 1
       placement:
@@ -180,3 +184,4 @@ networks:
   agent_network:
     driver: overlay
     attachable: true
+  prometheus_kong:
