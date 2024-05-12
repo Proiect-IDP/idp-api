@@ -1,0 +1,16 @@
+_format_version: "2.1"
+
+services:
+  - name: business-logic
+    url: http://business-logic:5000/api
+    routes:
+      - name: business-logic-route
+        paths: 
+          - /api
+  
+  - name: auth-service
+    url: http://auth-service:4000/api
+    routes:
+      - name: auth-service-route
+        paths:
+          - /auth
