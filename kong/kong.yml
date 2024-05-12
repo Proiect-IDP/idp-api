@@ -1,10 +1,10 @@
 _format_version: "2.1"
 
 services:
-  - name: business-logic
-    url: http://business-logic:5000/api
+  - name: business-logic-service
+    url: http://business-logic-service:5000/api
     routes:
-      - name: business-logic-route
+      - name: business-logic-service-route
         paths: 
           - /api
   

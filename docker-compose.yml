@@ -1,16 +1,8 @@
 version: '3.3'
 
-x-db_credentials: &weather-db-credentials
-  MONGO_INITDB_ROOT_USERNAME: weather_api_admin
-  MONGO_INITDB_ROOT_PASSWORD: weather_api_pass
-
-x-users_credentials: &users-db-credentials
-  MONGO_INITDB_USERS_ROOT_USERNAME: users_admin
-  MONGO_INITDB_USERS_ROOT_PASSWORD: users_pass
-
 services:
-  business-logic:
-    image: meduard/business-logic:latest
+  business-logic-service:
+    image: meduard/business-logic-service:latest
     networks:
       - business_grafana
       - business_auth
@@ -20,12 +12,15 @@ services:
       - 5000:5000
     depends_on:
       - io-service
-    restart: always
     environment:
-      <<: *weather-db-credentials
+      MONGO_INITDB_ROOT_USERNAME: weather_api_admin
+      MONGO_INITDB_ROOT_PASSWORD: weather_api_pass
       MONGO_HOST: weather-db
       MONGO_PORT: 27017
       DB_NAME: weather_data
+    deploy:
+      restart_policy:
+        condition: on-failure
 
   auth-service:
     image: meduard/auth-service:latest
@@ -33,7 +28,9 @@ services:
       - business_kong
     ports:
       - 4000:4000
-    restart: always
+    deploy:
+      restart_policy:
+        condition: on-failure
 
   prediction-service:
     image: meduard/prediction-service:latest
@@ -41,13 +38,15 @@ services:
       - main
     ports:
       - 7000:7000
-    restart: always
+    deploy:
+      restart_policy:
+        condition: on-failure
 
   io-service:
     image: meduard/io-service:latest
     deploy:
-      placement:
-          constraints: [node.role == manager]
+      restart_policy:
+        condition: on-failure
     networks:
       - main
       - io_db
@@ -55,19 +54,18 @@ services:
       - 6001:5000
     depends_on:
       - weather-db
-    restart: always
     environment:
-      <<: *weather-db-credentials
+      MONGO_INITDB_ROOT_USERNAME: weather_api_admin
+      MONGO_INITDB_ROOT_PASSWORD: weather_api_pass
       MONGO_HOST: weather-db
       MONGO_PORT: 27017
       DB_NAME: weather_data
 
   weather-db:
     image: mongo:latest
-    container_name: mongo-server
     deploy:
-      placement:
-        constraints: [node.role == manager]
+      restart_policy:
+        condition: on-failure
     networks:
       - express_db
       - io_db
@@ -75,8 +73,9 @@ services:
       - 27017:27017
     volumes:
       - db_data:/data/db
-    restart: always
-    environment: *weather-db-credentials
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: weather_api_admin
+      MONGO_INITDB_ROOT_PASSWORD: weather_api_pass
 
   kong:
     image: kong:latest
@@ -98,40 +97,70 @@ services:
     deploy:
       placement:
         constraints: [node.role == manager]
+      restart_policy:
+        condition: on-failure
     networks:
       - business_kong
       - express_db
 
   mongo-express:
     image: mongo-express:latest
-    container_name: mongo-express
     networks:
       - express_db
     ports:
       - 8111:8081
     depends_on:
       - weather-db
-    restart: always
+    deploy:
+      restart_policy:
+        condition: on-failure
     environment:
       ME_CONFIG_MONGODB_SERVER: mongo-server
       ME_CONFIG_MONGODB_ADMINUSERNAME: weather_api_admin
       ME_CONFIG_MONGODB_ADMINPASSWORD: weather_api_pass
       ME_CONFIG_BASICAUTH_USERNAME: admin
       ME_CONFIG_BASICAUTH_PASSWORD: password
+  
+  agent:
+    image: portainer/agent:2.11.1
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/lib/docker/volumes:/var/lib/docker/volumes
+    networks:
+      - agent_network
+    deploy:
+      mode: global
+      placement:
+        constraints: [node.platform.os == linux]
+
+  portainer:
+    image: portainer/portainer-ce:2.11.1
+    command: -H tcp://tasks.agent:9001 --tlsskipverify
+    ports:
+      - "9443:9443"
+      - "9000:9000"
+      - "8000:8000"
+    volumes:
+      - portainer_data:/data
+    networks:
+      - agent_network
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints: [node.role == manager]
 
 volumes:
   db_data: {}
+  portainer_data:
 
 networks:
   main:
-    name: main_network
   io_db:
-    name: io_db_network
   express_db:
-    name: express_db_network
   business_grafana:
-    name: business_grafana_network
   business_auth:
-    name: business_auth_network
   business_kong:
-    name: business_kong_network
+  agent_network:
+    driver: overlay
+    attachable: true
