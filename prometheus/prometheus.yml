@@ -1,10 +1,5 @@
 scrape_configs:
-  - job_name: 'prometheus'
+  - job_name: 'kong'
     scrape_interval: 5s
     static_configs:
-      - targets: ['prometheus:9090']
-
-  - job_name: 'docker'
-    scrape_interval: 5s
-    static_configs:
-      - targets: ['host.docker.internal:9323']
+      - targets: ['kong:8001']
