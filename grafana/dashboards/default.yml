@@ -4,5 +4,6 @@ providers:
 - name: Prometheus
   folder: ''
   type: file
+  updateIntervalSeconds: 10
   options:
     path: /etc/grafana/provisioning/dashboards
